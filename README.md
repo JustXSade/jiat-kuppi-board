@@ -1,58 +1,98 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Merlin Kuppi Board
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A campus peer-help, study board, and lost-and-found web app built for Java Institute (JIAT) students during **JIAT Hack Days Gampaha 2026**.
 
-## About Laravel
+## Why we built this
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Anyone who has studied for a Java viva or debugged a broken Laravel migration at midnight knows the struggle: you drop a question in the batch WhatsApp group and wait around hoping a senior is still awake to do a quick *Kuppi* session. 
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+We built **Merlin Kuppi Board** so students have one clean place to post coding doubts, exam prep questions, and campus lost-and-found notices—while getting an immediate AI-generated study guide in the meantime. Instead of replying in stiff textbook English or messy Singlish, the AI tutor is configured to explain concepts the way a senior batchmate actually talks: natural Sinhala mixed with standard English technical terms.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## What it does
 
-## Learning Laravel
+* **Campus Help & Lost-and-Found Feed:** Post questions or notices under categories like *Coding Help*, *Kuppi Request / Session*, *Exam Prep*, and *Lost & Found*, complete with comma-separated tags.
+* **Instant AI Kuppi Guide:** Every time a post is created, the backend calls the Google Gemini API and attaches a short, bulleted explanation directly to the post.
+* **Bilingual Output (Sinhala + English Tech Terms):** Uses Gemini's `system_instruction` to respond in proper Sinhala Unicode while keeping programming terms (`Class`, `Migration`, `API`, `SQLite`, etc.) in English—even if the student types their question in Singlish.
+* **Quick Actions:** Copy generated guides with one click and toggle posts between **Open** and **Resolved**.
+* **Terminal Mode (Artisan CLI):** If you don't want to leave VS Code, you can ask the Kuppi tutor questions straight from your terminal.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Tech Stack
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+* **Backend:** Laravel (PHP 8.x)
+* **Frontend:** Laravel Blade, Tailwind CSS, Vanilla JavaScript
+* **Database:** SQLite (Eloquent ORM)
+* **AI Model:** Google Gemini API (`gemini-3.5-flash-lite`)
+* **Local Dev Environment:** Laravel Herd
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Technical Notes
 
-## Agentic Development
+A couple of implementation details from the build:
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+1. **Shared Service Layer (`app/Services/GeminiService.php`):** We kept all Gemini API logic out of the controllers and placed it in a dedicated service class. Both `PostController` (Web UI) and `KuppiAskCommand` (CLI) call `GeminiService::generateKuppiHelp()`.
+2. **Prompt Control:** Rather than stuffing rules into the user prompt where the model might mirror a student's Singlish input, we pass strict language and formatting rules inside the API payload's `system_instruction` block.
+3. **Network & Error Handling:** During local testing on Windows/Herd, cURL occasionally timed out over HTTP/2. We forced HTTP/1.1 (`'version' => 1.1`) in Laravel's HTTP client and wrapped the request in a `try/catch` block so API or network issues log cleanly to `storage/logs/laravel.log` without breaking the page.
+
+## Running Locally
+
+### Prerequisites
+* PHP 8.2+ and Composer (or [Laravel Herd](https://herd.laravel.com/))
+* A Google Gemini API key from [Google AI Studio](https://aistudio.google.com/)
+
+### Setup Steps
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/JustXSade/jiat-kuppi-board.git
+   cd jiat-kuppi-board
+   ```
+
+2. Install PHP dependencies:
+   ```bash
+   composer install
+   ```
+
+3. Set up your environment file:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+4. Open `.env` and add your Gemini API key (and make sure SQLite is enabled):
+   ```env
+   DB_CONNECTION=sqlite
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+5. Create the SQLite database file and run migrations:
+   ```bash
+   touch database/database.sqlite
+   php artisan migrate
+   ```
+   *(On Windows PowerShell, run `New-Item database/database.sqlite -ItemType File` instead of `touch`.)*
+
+6. Start the app:
+   * If you use **Laravel Herd**, just visit `http://jiat-kuppi-board.test`.
+   * Otherwise, run:
+     ```bash
+     php artisan serve
+     ```
+
+## Using the CLI Tutor
+
+You can query the AI Kuppi Tutor directly from the project root without opening a browser:
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+php artisan kuppi:ask "Java OOP kiyanne mokakda?"
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Project Structure
 
-## Contributing
+* `app/Http/Controllers/PostController.php` — Handles board display, post creation, and Open/Resolved status updates.
+* `app/Models/Post.php` — Eloquent model for board posts (`author_name`, `title`, `content`, `category`, `tags`, `status`, `ai_summary`).
+* `app/Services/GeminiService.php` — Google Gemini REST integration and bilingual system prompt.
+* `app/Console/Commands/KuppiAskCommand.php` — Custom `kuppi:ask` Artisan command.
+* `resources/views/board.blade.php` — Main dark-mode UI for the Kuppi board.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Team
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Built by **Team Merlin** for JIAT Hack Days Gampaha 2026.
